@@ -65,8 +65,8 @@ export async function addMatchToEvent(eventId: string, formData: FormData) {
 
   const { error } = await supabase.from("matches").insert({
     event_id: eventId,
-    match_title: matchTitle,
     title: matchTitle,
+    match_title: matchTitle,
     description,
     option_1: option1,
     option_2: option2,
