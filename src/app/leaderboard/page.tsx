@@ -1,5 +1,6 @@
 import PageHero from "@/components/PageHero";
 import { createClient } from "@/lib/supabase/server";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export default async function LeaderboardPage({
   searchParams,
@@ -40,9 +41,7 @@ export default async function LeaderboardPage({
   }
 
   const leagues =
-    memberships
-      ?.map((membership: any) => membership.leagues)
-      .filter(Boolean) || [];
+    memberships?.map((membership: any) => membership.leagues).filter(Boolean) || [];
 
   const selectedLeagueId = params.league || leagues[0]?.id || "";
   const selectedLeague = leagues.find((league: any) => league.id === selectedLeagueId);
@@ -60,6 +59,10 @@ export default async function LeaderboardPage({
 
   return (
     <main className="page">
+      <RealtimeRefresh table="event_results" />
+      <RealtimeRefresh table="events" />
+      <RealtimeRefresh table="picks" />
+
       <PageHero
         title="Leaderboard"
         subtitle="View standings only for leagues where you are an active member."
@@ -70,6 +73,7 @@ export default async function LeaderboardPage({
           {params.message}
         </p>
       )}
+
       {params.error && (
         <p className="mb-4 rounded-xl border border-red-700 bg-red-950 p-4 text-red-100">
           {params.error}
@@ -101,6 +105,7 @@ export default async function LeaderboardPage({
                   ))}
                 </select>
               </label>
+
               <button className="btn-primary" type="submit">
                 View Leaderboard
               </button>
@@ -108,7 +113,9 @@ export default async function LeaderboardPage({
 
             <p className="mt-4 text-sm text-slate-300">
               Showing standings for:{" "}
-              <span className="font-black text-white">{selectedLeague?.name || "Selected league"}</span>
+              <span className="font-black text-white">
+                {selectedLeague?.name || "Selected league"}
+              </span>
             </p>
           </section>
 
@@ -131,6 +138,7 @@ export default async function LeaderboardPage({
                   <th className="p-3">Interference +/-</th>
                 </tr>
               </thead>
+
               <tbody>
                 {rows && rows.length > 0 ? (
                   rows.map((row: any, index: number) => (
@@ -141,7 +149,17 @@ export default async function LeaderboardPage({
                       <td className="p-3">{row.correct_picks}</td>
                       <td className="p-3">{row.wrong_picks}</td>
                       <td className="p-3">{row.perfect_events}</td>
-                      <td className={`p-3 font-bold ${Number(row.interference_total || 0) < 0 ? "text-red-300" : Number(row.interference_total || 0) > 0 ? "text-green-300" : "text-slate-300"}`}>{row.interference_total}</td>
+                      <td
+                        className={`p-3 font-bold ${
+                          Number(row.interference_total || 0) < 0
+                            ? "text-red-300"
+                            : Number(row.interference_total || 0) > 0
+                              ? "text-green-300"
+                              : "text-slate-300"
+                        }`}
+                      >
+                        {row.interference_total}
+                      </td>
                     </tr>
                   ))
                 ) : (
