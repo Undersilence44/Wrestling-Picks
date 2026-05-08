@@ -1,7 +1,11 @@
 import PageHero from "@/components/PageHero";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { addMatchToEvent, updateEvent } from "./actions";
+import {
+  addMatchToEvent,
+  updateEvent,
+  updateInterferenceBetPoints,
+} from "./actions";
 
 const OPTION_KEYS = [
   "competitor_a",
@@ -14,6 +18,10 @@ const OPTION_KEYS = [
 
 function optionValues(match: any) {
   return OPTION_KEYS.map((key) => match[key]).filter(Boolean);
+}
+
+function displayName(row: any) {
+  return row.display_name || row.full_name || row.email || row.user_id;
 }
 
 export default async function EditEventPage({
@@ -69,11 +77,16 @@ export default async function EditEventPage({
 
   const sortedMatches = matches || [];
 
+  const { data: interferenceSubmissions, error: interferenceError } =
+    await supabase.rpc("admin_get_interference_submissions", {
+      target_event_id: event.id,
+    });
+
   return (
     <main className="page max-w-6xl">
       <PageHero
         title="Edit Event"
-        subtitle={`Manage ${event.name}, match info, winners, and late match additions.`}
+        subtitle={`Manage ${event.name}, match info, winners, late match additions, and interference scoring.`}
       />
 
       {query.message && (
@@ -88,9 +101,19 @@ export default async function EditEventPage({
         </p>
       )}
 
+      {interferenceError && (
+        <p className="mb-4 rounded-xl border border-red-700 bg-red-950 p-4 text-red-100">
+          Could not load interference submissions: {interferenceError.message}
+        </p>
+      )}
+
       <form action={updateEvent} className="card space-y-5">
         <input type="hidden" name="event_id" value={event.id} />
-        <input type="hidden" name="match_ids" value={sortedMatches.map((m: any) => m.id).join(",")} />
+        <input
+          type="hidden"
+          name="match_ids"
+          value={sortedMatches.map((m: any) => m.id).join(",")}
+        />
 
         <h2 className="text-2xl font-black">Event Settings</h2>
 
@@ -120,10 +143,14 @@ export default async function EditEventPage({
 
           <div className="rounded-xl border border-slate-800 bg-black p-4 text-sm text-slate-300">
             <p>
-              League: <span className="font-bold text-white">{league?.name || "Unknown league"}</span>
+              League:{" "}
+              <span className="font-bold text-white">
+                {league?.name || "Unknown league"}
+              </span>
             </p>
             <p>
-              Scoring: <span className="font-bold text-white">{scoringType}</span>
+              Scoring:{" "}
+              <span className="font-bold text-white">{scoringType}</span>
             </p>
             <p className="mt-2 text-xs text-slate-500">
               Ranked leagues use confidence points only. Fixed points/perfect bonus are ignored for ranked leagues.
@@ -134,12 +161,22 @@ export default async function EditEventPage({
             <>
               <label>
                 Fixed Points
-                <input type="number" name="fixed_points" min="1" defaultValue={event.fixed_points ?? league?.fixed_points ?? 1} />
+                <input
+                  type="number"
+                  name="fixed_points"
+                  min="1"
+                  defaultValue={event.fixed_points ?? league?.fixed_points ?? 1}
+                />
               </label>
 
               <label>
                 Perfect Event Bonus
-                <input type="number" name="perfect_bonus" min="0" defaultValue={event.perfect_bonus ?? league?.perfect_bonus ?? 5} />
+                <input
+                  type="number"
+                  name="perfect_bonus"
+                  min="0"
+                  defaultValue={event.perfect_bonus ?? league?.perfect_bonus ?? 5}
+                />
               </label>
             </>
           )}
@@ -162,14 +199,20 @@ export default async function EditEventPage({
                 const options = optionValues(match);
 
                 return (
-                  <div key={match.id} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+                  <div
+                    key={match.id}
+                    className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5"
+                  >
                     <h3 className="mb-3 text-lg font-black">Match {index + 1}</h3>
 
                     <label>
                       Match Title / Description
                       <input
                         name={`match_title_${match.id}`}
-                        defaultValue={match.match_title || `${match.competitor_a || ""} vs ${match.competitor_b || ""}`}
+                        defaultValue={
+                          match.match_title ||
+                          `${match.competitor_a || ""} vs ${match.competitor_b || ""}`
+                        }
                       />
                     </label>
 
@@ -284,12 +327,88 @@ export default async function EditEventPage({
         </section>
       ) : (
         <section className="card mt-8 border-yellow-700">
-          <h2 className="text-2xl font-black text-yellow-300">Match Adding Locked</h2>
+          <h2 className="text-2xl font-black text-yellow-300">
+            Match Adding Locked
+          </h2>
           <p className="mt-2 text-slate-300">
             Matches can only be added while the event status is open.
           </p>
         </section>
       )}
+
+      <section className="card mt-8 space-y-4">
+        <div>
+          <h2 className="text-2xl font-black">Interference Bet Scoring</h2>
+          <p className="text-sm text-slate-300">
+            Review each member&apos;s interference prediction, wager, and assign bonus or penalty points.
+          </p>
+        </div>
+
+        {(interferenceSubmissions || []).length === 0 ? (
+          <p className="rounded-xl border border-slate-800 bg-black/30 p-4 text-slate-300">
+            No interference predictions have been submitted for this event yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {(interferenceSubmissions || []).map((submission: any) => (
+              <form
+                key={submission.bet_id}
+                action={updateInterferenceBetPoints}
+                className="rounded-2xl border border-slate-800 bg-black/30 p-4"
+              >
+                <input type="hidden" name="event_id" value={event.id} />
+                <input type="hidden" name="bet_id" value={submission.bet_id} />
+
+                <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="font-black">{displayName(submission)}</h3>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                      Wager: {submission.wager}
+                    </p>
+                  </div>
+
+                  <p className="rounded-full border border-blue-900 bg-blue-950/40 px-3 py-1 text-xs font-bold text-blue-100">
+                    Current: {submission.admin_points ?? submission.points_awarded ?? 0} pts
+                  </p>
+                </div>
+
+                <div className="mb-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Member&apos;s interference call
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-slate-100">
+                    {submission.prediction || "No description entered."}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-[160px_1fr_auto] md:items-end">
+                  <label>
+                    Points +/-
+                    <input
+                      name="admin_points"
+                      type="number"
+                      defaultValue={submission.admin_points ?? submission.points_awarded ?? 0}
+                    />
+                  </label>
+
+                  <label>
+                    Admin Note
+                    <input
+                      name="admin_note"
+                      defaultValue={submission.admin_note || ""}
+                      placeholder="Why points were granted or removed"
+                    />
+                  </label>
+
+                  <button className="btn-primary py-2" type="submit">
+                    Save Points
+                  </button>
+                </div>
+              </form>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
