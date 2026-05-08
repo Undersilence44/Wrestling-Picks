@@ -3,7 +3,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-async function requireLmOrAlmForEvent(eventId: string) {
+const OPTION_KEYS = [
+  "competitor_a",
+  "competitor_b",
+  "competitor_c",
+  "competitor_d",
+  "competitor_e",
+  "competitor_f",
+] as const;
+
+export async function updateEvent(formData: FormData) {
   const supabase = await createClient();
 
   const {
@@ -12,19 +21,19 @@ async function requireLmOrAlmForEvent(eventId: string) {
 
   if (!user) redirect("/login");
 
-  const { data: event, error: eventError } = await supabase
+  const event_id = String(formData.get("event_id") || "");
+
+  const { data: event } = await supabase
     .from("events")
-    .select("id, league_id, status")
-    .eq("id", eventId)
+    .select("id,league_id")
+    .eq("id", event_id)
     .single();
 
-  if (eventError || !event) {
-    redirect("/admin?error=Event not found");
-  }
+  if (!event) redirect("/admin?error=Event not found");
 
   const { data: membership } = await supabase
     .from("league_members")
-    .select("role")
+    .select("id")
     .eq("league_id", event.league_id)
     .eq("user_id", user.id)
     .eq("status", "active")
@@ -32,53 +41,186 @@ async function requireLmOrAlmForEvent(eventId: string) {
     .maybeSingle();
 
   if (!membership) {
-    redirect("/admin?error=You do not have permission to edit this event");
+    redirect("/leagues?error=Only LM or ALM can update that event");
   }
 
-  return { supabase, event };
+  const newStatus = String(formData.get("status") || "open");
+
+  const { error: eventError } = await supabase
+    .from("events")
+    .update({
+      name: String(formData.get("name") || "").trim(),
+      event_date: String(formData.get("event_date") || ""),
+      status: newStatus,
+      perfect_bonus: Number(formData.get("perfect_bonus") || 0),
+    })
+    .eq("id", event_id);
+
+  if (eventError) {
+    redirect(
+      `/admin/events/${event_id}/edit?error=${encodeURIComponent(
+        eventError.message
+      )}`
+    );
+  }
+
+  const matchIds = String(formData.get("match_ids") || "")
+    .split(",")
+    .filter(Boolean);
+
+  for (const id of matchIds) {
+    const values = OPTION_KEYS.map((key) =>
+      String(formData.get(`${key}_${id}`) || "").trim()
+    );
+
+    const winner = String(
+      formData.get(`winner_${id}`) || ""
+    ).trim();
+
+    await supabase
+      .from("matches")
+      .update({
+        match_title: String(
+          formData.get(`match_title_${id}`) || ""
+        ).trim(),
+
+        description: String(
+          formData.get(`description_${id}`) || ""
+        ).trim(),
+
+        competitor_a: values[0],
+        competitor_b: values[1],
+        competitor_c: values[2] || null,
+        competitor_d: values[3] || null,
+        competitor_e: values[4] || null,
+        competitor_f: values[5] || null,
+        winner: winner || null,
+      })
+      .eq("id", id);
+  }
+
+  if (newStatus === "final") {
+    const { error: scoringError } = await supabase.rpc(
+      "calculate_event_results",
+      {
+        target_event_id: event_id,
+      }
+    );
+
+    if (scoringError) {
+      redirect(
+        `/admin/events/${event_id}/edit?error=${encodeURIComponent(
+          `Event saved, but scoring failed: ${scoringError.message}`
+        )}`
+      );
+    }
+
+    redirect(
+      `/admin/events/${event_id}/edit?message=Event updated and leaderboard calculated`
+    );
+  }
+
+  redirect(`/admin/events/${event_id}/edit?message=Event updated`);
 }
 
-export async function addMatchToEvent(eventId: string, formData: FormData) {
-  const { supabase, event } = await requireLmOrAlmForEvent(eventId);
+export async function addMatchToEvent(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const event_id = String(formData.get("event_id") || "");
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("id,league_id,status")
+    .eq("id", event_id)
+    .single();
+
+  if (!event) redirect("/admin?error=Event not found");
 
   if (event.status !== "open") {
-    redirect(`/admin/events/${eventId}/edit?error=Matches can only be added while the event is open`);
+    redirect(
+      `/admin/events/${event_id}/edit?error=Matches can only be added while event is open`
+    );
   }
 
-  const matchTitle = String(formData.get("match_title") || "").trim();
-  const description = String(formData.get("description") || "").trim();
+  const { data: membership } = await supabase
+    .from("league_members")
+    .select("id")
+    .eq("league_id", event.league_id)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .in("role", ["LM", "ALM"])
+    .maybeSingle();
 
-  const option1 = String(formData.get("option_1") || "").trim();
-  const option2 = String(formData.get("option_2") || "").trim();
-  const option3 = String(formData.get("option_3") || "").trim();
-  const option4 = String(formData.get("option_4") || "").trim();
-  const option5 = String(formData.get("option_5") || "").trim();
-  const option6 = String(formData.get("option_6") || "").trim();
-
-  if (!matchTitle) {
-    redirect(`/admin/events/${eventId}/edit?error=Match title is required`);
+  if (!membership) {
+    redirect("/leagues?error=Only LM or ALM can add matches");
   }
 
-  if (!option1 || !option2) {
-    redirect(`/admin/events/${eventId}/edit?error=At least two match options are required`);
+  const match_title = String(
+    formData.get("new_match_title") || ""
+  ).trim();
+
+  const description = String(
+    formData.get("new_match_description") || ""
+  ).trim();
+
+  const options = [
+    String(formData.get("new_option_1") || "").trim(),
+    String(formData.get("new_option_2") || "").trim(),
+    String(formData.get("new_option_3") || "").trim(),
+    String(formData.get("new_option_4") || "").trim(),
+    String(formData.get("new_option_5") || "").trim(),
+    String(formData.get("new_option_6") || "").trim(),
+  ];
+
+  const filtered = options.filter(Boolean);
+
+  if (!match_title || filtered.length < 2) {
+    redirect(
+      `/admin/events/${event_id}/edit?error=Match title and at least 2 options required`
+    );
   }
 
-  const { error } = await supabase.from("matches").insert({
-    event_id: eventId,
-    title: matchTitle,
-    match_title: matchTitle,
-    description,
-    option_1: option1,
-    option_2: option2,
-    option_3: option3 || null,
-    option_4: option4 || null,
-    option_5: option5 || null,
-    option_6: option6 || null,
-  });
+  const { data: lastMatch } = await supabase
+    .from("matches")
+    .select("match_order")
+    .eq("event_id", event_id)
+    .order("match_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextOrder = (lastMatch?.match_order || 0) + 1;
+
+  const { error } = await supabase
+    .from("matches")
+    .insert({
+      event_id,
+      match_order: nextOrder,
+      match_title,
+      description,
+
+      competitor_a: options[0] || null,
+      competitor_b: options[1] || null,
+      competitor_c: options[2] || null,
+      competitor_d: options[3] || null,
+      competitor_e: options[4] || null,
+      competitor_f: options[5] || null,
+    });
 
   if (error) {
-    redirect(`/admin/events/${eventId}/edit?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/admin/events/${event_id}/edit?error=${encodeURIComponent(
+        error.message
+      )}`
+    );
   }
 
-  redirect(`/admin/events/${eventId}/edit?message=Match added successfully`);
+  redirect(
+    `/admin/events/${event_id}/edit?message=Match added successfully`
+  );
 }
