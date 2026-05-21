@@ -45,7 +45,8 @@ export async function resetPassword() {
 
   if (!user?.email) redirect("/login");
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
     redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
@@ -57,4 +58,3 @@ export async function resetPassword() {
 
   redirect("/account?message=Password reset email sent. Check your email.");
 }
-
