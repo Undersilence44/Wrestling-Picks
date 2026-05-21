@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
     }
 
     const profileMap = new Map<string, any>();
+
     for (const profile of profiles || []) {
       profileMap.set(profile.id, profile);
     }
@@ -134,28 +135,56 @@ export async function GET(request: NextRequest) {
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
             <h1>⏰ Picks Reminder</h1>
+
             <p>Hello ${profile.display_name || "member"},</p>
+
             <p>You still have not submitted your picks for:</p>
+
             <h2>${event.name}</h2>
-            <p>League: <strong>${league?.name || "Wrestling Picks League"}</strong></p>
-            <p>Event Date: <strong>${eventDate.toLocaleString("en-US", {
-              timeZone: "America/New_York",
-            })}</strong></p>
+
+            <p>
+              League:
+              <strong>${league?.name || "Wrestling Picks League"}</strong>
+            </p>
+
+            <p>
+              Event Date:
+              <strong>${eventDate.toLocaleString("en-US", {
+                timeZone: "America/New_York",
+              })}</strong>
+            </p>
+
             <p style="margin-top:30px;">
-              <a href="${eventUrl}" style="background:#dc2626;color:white;padding:12px 20px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:bold;">
+              <a
+                href="${eventUrl}"
+                style="
+                  background:#dc2626;
+                  color:white;
+                  padding:12px 20px;
+                  text-decoration:none;
+                  border-radius:8px;
+                  display:inline-block;
+                  font-weight:bold;
+                "
+              >
                 Submit Picks
               </a>
             </p>
-            <p style="font-size:12px;color:#666;margin-top:32px;">Reminder slot: ${slot}</p>
+
+            <p style="font-size:12px;color:#666;margin-top:32px;">
+              Reminder slot: ${slot}
+            </p>
           </div>
         `,
       });
 
       if (sendResult.error) {
         failedEmails++;
+
         errors.push(
           `Resend failed for ${profile.email}: ${sendResult.error.message}`
         );
+
         continue;
       }
 
@@ -169,11 +198,18 @@ export async function GET(request: NextRequest) {
 
       if (logError) {
         failedEmails++;
-        errors.push(`Log insert failed for ${profile.email}: ${logError.message}`);
+
+        errors.push(
+          `Log insert failed for ${profile.email}: ${logError.message}`
+        );
+
         continue;
       }
 
       emailsSent++;
+
+      // Prevent Resend 5 req/sec rate limit
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
 
