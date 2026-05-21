@@ -129,7 +129,8 @@ export async function GET(request: NextRequest) {
       const eventUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/events/${event.id}`;
 
       const sendResult = await resend.emails.send({
-        from: "Wrestling Picks <no-reply@pro-wrestlingpicks.com>",
+        from: "Wrestling Picks <support@pro-wrestlingpicks.com>",
+	replyTo: "support@pro-wrestlingpicks.com",
         to: profile.email,
         subject: `Reminder: Submit Picks for ${event.name}`,
         html: `
