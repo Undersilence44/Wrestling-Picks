@@ -7,6 +7,7 @@ import {
   deleteEventFromAdminList,
   deleteLeague,
   removeAlm,
+  removeLeagueMember,
   transferLm,
 } from "./actions";
 
@@ -127,7 +128,7 @@ export default async function AdminPage({
     <main className="page">
       <PageHero
         title="Admin Dashboard"
-        subtitle="LM/ALM management for events, matches, winners, and league settings."
+        subtitle="LM/ALM management for events, matches, winners, league settings, and league members."
       />
 
       {sp.message && (
@@ -317,6 +318,11 @@ export default async function AdminPage({
                 (member: any) => member.role === "ALM"
               );
 
+              const removableMembers = leagueMembers.filter(
+                (member: any) =>
+                  member.role !== "LM" && member.user_id !== user.id
+              );
+
               return (
                 <div
                   key={membership.league_id}
@@ -329,7 +335,8 @@ export default async function AdminPage({
                       </h3>
 
                       <p className="text-sm text-slate-300">
-                        Only the LM can assign/remove ALM or delete the league.
+                        Only the LM can assign/remove ALM, remove league members,
+                        transfer LM, or delete the league.
                       </p>
                     </div>
 
@@ -423,6 +430,63 @@ export default async function AdminPage({
                       )}
                     </div>
 
+                    <div className="rounded-xl border border-orange-900 bg-orange-950/20 p-4">
+                      <h4 className="mb-3 font-black text-orange-100">
+                        Remove League Member
+                      </h4>
+
+                      <p className="mb-3 text-sm text-orange-100/80">
+                        Remove a member from this league. This only removes
+                        them from this specific league.
+                      </p>
+
+                      <form action={removeLeagueMember} className="space-y-3">
+                        <input
+                          type="hidden"
+                          name="league_id"
+                          value={membership.league_id}
+                        />
+
+                        <label>
+                          Select Member
+                          <select name="member_id" required defaultValue="">
+                            <option value="">Choose an active member</option>
+
+                            {removableMembers.map((member: any) => (
+                              <option key={member.id} value={member.id}>
+                                {displayMemberName(member, profileMap)} (
+                                {member.role})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        {removableMembers.length === 0 && (
+                          <p className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-sm text-slate-300">
+                            No removable members are available. The LM cannot
+                            be removed from their own league.
+                          </p>
+                        )}
+
+                        <label>
+                          Type REMOVE to confirm
+                          <input
+                            name="confirm_remove"
+                            placeholder="REMOVE"
+                            required
+                          />
+                        </label>
+
+                        <button
+                          className="w-full rounded-xl bg-orange-700 px-4 py-3 font-black text-white hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          type="submit"
+                          disabled={removableMembers.length === 0}
+                        >
+                          Remove Member
+                        </button>
+                      </form>
+                    </div>
+
                     <div className="rounded-xl border border-red-900 bg-red-950/20 p-4">
                       <h4 className="mb-3 font-black text-red-100">
                         Transfer League Manager
@@ -483,7 +547,7 @@ export default async function AdminPage({
                       </form>
                     </div>
 
-                    <div className="rounded-xl border border-red-900 bg-red-950/20 p-4 lg:col-span-2">
+                    <div className="rounded-xl border border-red-900 bg-red-950/20 p-4">
                       <h4 className="mb-3 font-black text-red-100">
                         Delete League
                       </h4>
