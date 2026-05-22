@@ -13,6 +13,7 @@ const links = [
 
 export default async function NavBar() {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -32,34 +33,44 @@ export default async function NavBar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-800 bg-black/80 backdrop-blur-xl">
-      <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center">
+    <header className="sticky top-0 z-50 border-b border-slate-800 bg-black/85 backdrop-blur-xl">
+      <nav className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <Link href="/" className="flex justify-center lg:justify-start">
           <Image
             src="/logo.png"
             alt="Pro Wrestling Picks"
             width={340}
             height={120}
             priority
-            className="h-16 w-auto object-contain"
+            className="h-14 w-auto object-contain sm:h-16"
           />
         </Link>
 
-        <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-200">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-bold text-slate-200 lg:justify-end">
           {links.map(([label, href]) => (
-            <Link key={href} href={href} className="rounded-lg px-3 py-2 hover:bg-slate-900">
+            <Link
+              key={href}
+              href={href}
+              className="rounded-lg px-3 py-2 hover:bg-slate-900"
+            >
               {label}
             </Link>
           ))}
 
           {canSeeAdmin && (
-            <Link href="/admin" className="rounded-lg px-3 py-2 text-blue-300 hover:bg-slate-900">
+            <Link
+              href="/admin"
+              className="rounded-lg px-3 py-2 text-blue-300 hover:bg-slate-900"
+            >
               Admin
             </Link>
           )}
 
           {user && (
-            <Link href="/account" className="rounded-lg px-3 py-2 text-red-300 hover:bg-slate-900">
+            <Link
+              href="/account"
+              className="rounded-lg px-3 py-2 text-red-300 hover:bg-slate-900"
+            >
               Account
             </Link>
           )}
@@ -71,6 +82,7 @@ export default async function NavBar() {
               <Link href="/login" className="btn-dark py-2">
                 Login
               </Link>
+
               <Link href="/signup" className="btn-primary py-2">
                 Sign Up
               </Link>
