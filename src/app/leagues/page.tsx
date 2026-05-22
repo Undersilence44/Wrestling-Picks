@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PageHero from "@/components/PageHero";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { createLeague, joinPublicLeague } from "./actions";
 
 type SearchParams = Promise<{
@@ -29,11 +30,13 @@ export default async function LeaguesPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/login?message=Please login to view leagues");
+  }
+
   const { data: leagues } = await supabase
     .from("leagues")
-    .select(
-      "id,name,description,visibility,scoring_type,perfect_bonus"
-    )
+    .select("id,name,description,visibility,scoring_type,perfect_bonus")
     .eq("visibility", "public")
     .order("created_at", { ascending: false });
 
@@ -44,24 +47,18 @@ export default async function LeaguesPage({
   const memberCountMap = new Map<string, number>();
 
   for (const row of memberCounts || []) {
-    memberCountMap.set(row.league_id, row.member_count);
+    memberCountMap.set(row.league_id, Number(row.member_count || 0));
   }
 
-  let joinedLeagueIds = new Set<string>();
+  const { data: memberships } = await supabase
+    .from("league_members")
+    .select("league_id")
+    .eq("user_id", user.id)
+    .eq("status", "active");
 
-  if (user) {
-    const { data: memberships } = await supabase
-      .from("league_members")
-      .select("league_id")
-      .eq("user_id", user.id)
-      .eq("status", "active");
-
-    joinedLeagueIds = new Set(
-      (memberships || []).map(
-        (membership) => membership.league_id as string
-      )
-    );
-  }
+  const joinedLeagueIds = new Set(
+    (memberships || []).map((membership) => membership.league_id as string)
+  );
 
   return (
     <main className="page">
@@ -84,20 +81,13 @@ export default async function LeaguesPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card">
-          <h2 className="mb-4 text-2xl font-black">
-            Public Leagues
-          </h2>
+          <h2 className="mb-4 text-2xl font-black">Public Leagues</h2>
 
           <div className="space-y-4">
             {leagues?.length ? (
               (leagues as PublicLeague[]).map((league) => {
-                const alreadyJoined = joinedLeagueIds.has(
-                  league.id
-                );
-
-                const memberCount =
-                  memberCountMap.get(league.id) || 0;
-
+                const alreadyJoined = joinedLeagueIds.has(league.id);
+                const memberCount = memberCountMap.get(league.id) || 0;
                 const isFull = memberCount >= 30;
 
                 return (
@@ -115,14 +105,12 @@ export default async function LeaguesPage({
                         </Link>
 
                         <p className="text-slate-300">
-                          {league.description ||
-                            "No description yet."}
+                          {league.description || "No description yet."}
                         </p>
 
                         <p className="mt-2 text-sm text-blue-300">
-                          Scoring: {league.scoring_type} ·
-                          Perfect bonus: {league.perfect_bonus} ·
-                          Members: {memberCount}/30
+                          Scoring: {league.scoring_type} · Perfect bonus:{" "}
+                          {league.perfect_bonus} · Members: {memberCount}/30
                         </p>
                       </div>
 
@@ -133,27 +121,21 @@ export default async function LeaguesPage({
                       )}
                     </div>
 
-                    {user && !alreadyJoined && !isFull && (
-                      <form
-                        action={joinPublicLeague}
-                        className="mt-3"
-                      >
+                    {!alreadyJoined && !isFull && (
+                      <form action={joinPublicLeague} className="mt-3">
                         <input
                           type="hidden"
                           name="league_id"
                           value={league.id}
                         />
 
-                        <button
-                          className="btn-primary py-2"
-                          type="submit"
-                        >
+                        <button className="btn-primary py-2" type="submit">
                           Join
                         </button>
                       </form>
                     )}
 
-                    {user && !alreadyJoined && isFull && (
+                    {!alreadyJoined && isFull && (
                       <p className="mt-3 rounded-xl border border-red-800 bg-red-950/40 px-3 py-2 text-sm font-bold text-red-100">
                         League full
                       </p>
@@ -165,13 +147,6 @@ export default async function LeaguesPage({
                     >
                       View members
                     </Link>
-
-                    {!user && (
-                      <p className="mt-3 text-sm text-slate-400">
-                        Login or create an account to join this
-                        league.
-                      </p>
-                    )}
                   </div>
                 );
               })
@@ -184,87 +159,62 @@ export default async function LeaguesPage({
         </section>
 
         <section className="card">
-          <h2 className="mb-4 text-2xl font-black">
-            Create League
-          </h2>
+          <h2 className="mb-4 text-2xl font-black">Create League</h2>
 
-          {user ? (
-            <form
-              action={createLeague}
-              className="space-y-4"
-            >
-              <label>
-                League Name
-                <input name="name" required />
-              </label>
+          <form action={createLeague} className="space-y-4">
+            <label>
+              League Name
+              <input name="name" required />
+            </label>
 
-              <label>
-                Description
-                <textarea name="description" />
-              </label>
+            <label>
+              Description
+              <textarea name="description" />
+            </label>
 
-              <label>
-                Visibility
-                <select
-                  name="visibility"
-                  defaultValue="public"
-                >
-                  <option value="public">Public</option>
+            <label>
+              Visibility
+              <select name="visibility" defaultValue="public">
+                <option value="public">Public</option>
+                <option value="private">Private Invite Only</option>
+              </select>
+            </label>
 
-                  <option value="private">
-                    Private Invite Only
-                  </option>
-                </select>
-              </label>
+            <label>
+              Scoring Type
+              <select name="scoring_type" defaultValue="ranked">
+                <option value="ranked">Ranked</option>
+                <option value="fixed">Fixed</option>
+                <option value="fantasy" disabled>
+                  Fantasy League Coming Soon
+                </option>
+              </select>
+            </label>
 
-              <label>
-                Scoring Type
-                <select
-                  name="scoring_type"
-                  defaultValue="ranked"
-                >
-                  <option value="ranked">Ranked</option>
+            <label>
+              Fixed Points Per Correct Pick
+              <input
+                name="fixed_points"
+                type="number"
+                defaultValue="1"
+                min="1"
+              />
+            </label>
 
-                  <option value="fixed">Fixed</option>
+            <label>
+              Perfect Event Bonus
+              <input
+                name="perfect_bonus"
+                type="number"
+                defaultValue="5"
+                min="0"
+              />
+            </label>
 
-                  <option value="fantasy" disabled>
-                    Fantasy League Coming Soon
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                Fixed Points Per Correct Pick
-                <input
-                  name="fixed_points"
-                  type="number"
-                  defaultValue="1"
-                  min="1"
-                />
-              </label>
-
-              <label>
-                Perfect Event Bonus
-                <input
-                  name="perfect_bonus"
-                  type="number"
-                  defaultValue="5"
-                  min="0"
-                />
-              </label>
-
-              <button
-                className="btn-danger w-full"
-                type="submit"
-              >
-                Create League
-              </button>
-            </form>
-          ) : (
-            <p className="text-slate-300">
-              Login to create a league.
-            </p>
-          )}
+            <button className="btn-danger w-full" type="submit">
+              Create League
+            </button>
+          </form>
         </section>
       </div>
     </main>
