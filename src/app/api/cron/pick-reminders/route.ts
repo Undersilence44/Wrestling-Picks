@@ -13,6 +13,8 @@ const VALID_SLOTS = new Set([
   "friday-8am",
   "friday-8pm",
   "saturday-5pm",
+  "saturday-8pm",
+  "sunday-noon",
   "test",
 ]);
 
