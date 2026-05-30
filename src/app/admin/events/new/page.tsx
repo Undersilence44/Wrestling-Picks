@@ -1,4 +1,4 @@
-import PageHero from "@/components/PageHero";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { createEvent } from "./actions";
 import { redirect } from "next/navigation";
@@ -15,7 +15,7 @@ export default async function NewEventPage() {
 
   if (!user) redirect("/login");
 
-  const { data: adminMemberships } = await supabase
+  const { data: lmMemberships } = await supabase
     .from("league_members")
     .select(`
       league_id,
@@ -30,27 +30,49 @@ export default async function NewEventPage() {
     `)
     .eq("user_id", user.id)
     .eq("status", "active")
-    .in("role", ["LM", "ALM"]);
+    .eq("role", "LM");
 
-  if (!adminMemberships?.length) {
+  if (!lmMemberships?.length) {
     redirect(
-      "/leagues?error=Only League Managers and Assistant League Managers can create events"
+      "/admin?error=Only League Managers can create events. Assistant League Managers can edit events but cannot create them."
     );
   }
 
   return (
-    <main className="page max-w-6xl">
-      <PageHero
-        title="Create Event"
-        subtitle="Create a league event and build the match card."
-      />
+    <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-10">
+      <section className="relative overflow-hidden rounded-[38px] border border-white/10 bg-black/40 p-8 shadow-2xl backdrop-blur-xl sm:p-10 lg:p-12">
+        <Image
+          src="/home/cta-panel-bg.png"
+          alt="Create event background"
+          fill
+          priority
+          className="object-cover opacity-55"
+        />
 
-      <form action={createEvent} className="card space-y-5">
+        <div className="absolute inset-0 bg-black/65" />
+
+        <div className="relative z-10">
+          <p className="text-xs font-black uppercase tracking-[0.45em] text-red-300">
+            League Manager
+          </p>
+
+          <h1 className="mt-5 text-5xl font-black uppercase text-white sm:text-7xl">
+            Create Event
+          </h1>
+
+          <p className="mt-4 max-w-3xl text-slate-300">
+            Create a league event and build the match card. Only League
+            Managers can create new events.
+          </p>
+        </div>
+      </section>
+
+      <form action={createEvent} className="card mt-6 space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
           <label>
             League
             <select name="league_id" required>
-              {adminMemberships.map((membership: any) => (
+              {lmMemberships.map((membership: any) => (
                 <option
                   key={membership.league_id}
                   value={membership.league_id}
@@ -73,15 +95,11 @@ export default async function NewEventPage() {
 
           <label>
             Date & Time
-            <input
-              name="event_date"
-              type="datetime-local"
-              required
-            />
+            <input name="event_date" type="datetime-local" required />
           </label>
 
           <label>
-            Perfect Bonus (Fixed leagues only)
+            Perfect Bonus / Fixed Leagues Only
             <input
               name="perfect_bonus"
               type="number"
@@ -91,53 +109,58 @@ export default async function NewEventPage() {
           </label>
         </div>
 
-        <div className="rounded-2xl border border-blue-900 bg-blue-950/20 p-4">
-          <h2 className="text-xl font-black">Matches</h2>
+        <section className="rounded-2xl border border-blue-900 bg-blue-950/20 p-4">
+          <h2 className="text-xl font-black uppercase text-white">
+            Match Card
+          </h2>
 
           <p className="mt-1 text-sm text-slate-300">
-            Ranked leagues use confidence scoring only.
-            Fixed leagues use fixed point scoring only.
+            Fill out only the matches you need. Empty matches will be ignored.
+            Each match needs a title and at least two options.
           </p>
-        </div>
+        </section>
 
         {Array.from({ length: MATCH_COUNT }).map((_, idx) => {
           const matchNumber = idx + 1;
 
           return (
-            <div
+            <details
               key={matchNumber}
-              className="rounded-2xl border border-slate-800 bg-black/30 p-4"
+              className="rounded-2xl border border-white/10 bg-black/35 p-4"
+              open={matchNumber <= 3}
             >
-              <h3 className="mb-3 text-lg font-black">
+              <summary className="cursor-pointer text-lg font-black uppercase text-white">
                 Match {matchNumber}
-              </h3>
+              </summary>
 
-              <label>
-                Match Title / Description
-                <input
-                  name={`match_title_${matchNumber}`}
-                  placeholder="Roman vs Cody for WWE Title"
-                />
-              </label>
+              <div className="mt-4">
+                <label>
+                  Match Title / Description
+                  <input
+                    name={`match_title_${matchNumber}`}
+                    placeholder="Roman vs Cody for WWE Title"
+                  />
+                </label>
 
-              <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: OPTION_COUNT }).map(
-                  (_, optionIdx) => (
-                    <label key={optionIdx}>
-                      Option {optionIdx + 1}
-                      <input
-                        name={`option_${matchNumber}_${optionIdx + 1}`}
-                        placeholder={
-                          optionIdx < 2
-                            ? `Required option ${optionIdx + 1}`
-                            : `Optional option ${optionIdx + 1}`
-                        }
-                      />
-                    </label>
-                  )
-                )}
+                <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: OPTION_COUNT }).map(
+                    (_, optionIdx) => (
+                      <label key={optionIdx}>
+                        Option {optionIdx + 1}
+                        <input
+                          name={`option_${matchNumber}_${optionIdx + 1}`}
+                          placeholder={
+                            optionIdx < 2
+                              ? `Required option ${optionIdx + 1}`
+                              : `Optional option ${optionIdx + 1}`
+                          }
+                        />
+                      </label>
+                    )
+                  )}
+                </div>
               </div>
-            </div>
+            </details>
           );
         })}
 

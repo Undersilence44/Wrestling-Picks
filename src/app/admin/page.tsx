@@ -1,10 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
-import PageHero from "@/components/PageHero";
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import {
   assignAlm,
-  deleteEventFromAdminList,
   deleteLeague,
   removeAlm,
   removeLeagueMember,
@@ -65,11 +64,7 @@ export default async function AdminPage({
     (membership: any) => membership.league_id
   );
 
-  const roleByLeagueId = new Map<string, string>();
-
-  for (const membership of adminMemberships || []) {
-    roleByLeagueId.set(membership.league_id, membership.role);
-  }
+  const canCreateEvents = lmLeagueIds.length > 0;
 
   const { data: events } = await supabase
     .from("events")
@@ -124,184 +119,287 @@ export default async function AdminPage({
     membersByLeague.set(member.league_id, list);
   }
 
+  const openEvents = (events || []).filter(
+    (event: any) => event.status === "open"
+  );
+
+  const finalEvents = (events || []).filter(
+    (event: any) => event.status === "final"
+  );
+
   return (
-    <main className="page">
-      <PageHero
-        title="Admin Dashboard"
-        subtitle="LM/ALM management for events, matches, winners, league settings, and league members."
-      />
+    <main className="mx-auto w-full max-w-[1700px] px-4 py-6 sm:px-6 lg:px-10">
+      <section className="relative overflow-hidden rounded-[38px] border border-white/10 bg-black/40 p-8 shadow-2xl backdrop-blur-xl sm:p-10 lg:p-12">
+        <Image
+          src="/home/cta-panel-bg.png"
+          alt="Admin background"
+          fill
+          priority
+          className="object-cover opacity-60"
+        />
+
+        <div className="absolute inset-0 bg-black/65" />
+
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.45em] text-red-300">
+              Admin Dashboard
+            </p>
+
+            <h1 className="mt-5 text-5xl font-black uppercase text-white sm:text-7xl">
+              Command Center
+            </h1>
+
+            <p className="mt-4 max-w-3xl text-slate-300">
+              Manage events, league members, assistant managers, winners,
+              scoring, and league controls.
+            </p>
+          </div>
+
+          {canCreateEvents && (
+            <Link href="/admin/events/new" className="btn-danger text-center">
+              Create Event
+            </Link>
+          )}
+        </div>
+      </section>
 
       {sp.message && (
-        <p className="mb-4 rounded-xl border border-blue-700 bg-blue-950 p-4 text-blue-100">
+        <p className="mt-6 rounded-2xl border border-blue-700 bg-blue-950/80 p-4 text-blue-100">
           {sp.message}
         </p>
       )}
 
       {sp.error && (
-        <p className="mb-4 rounded-xl border border-red-700 bg-red-950 p-4 text-red-100">
+        <p className="mt-6 rounded-2xl border border-red-700 bg-red-950/80 p-4 text-red-100">
           {sp.error}
         </p>
       )}
 
       {managedMembersError && (
-        <p className="mb-4 rounded-xl border border-red-700 bg-red-950 p-4 text-red-100">
+        <p className="mt-6 rounded-2xl border border-red-700 bg-red-950/80 p-4 text-red-100">
           Could not load league members: {managedMembersError.message}
         </p>
       )}
 
-      <div className="mb-6 flex flex-wrap gap-3">
-        <Link href="/admin/events/new" className="btn-danger inline-block">
-          Create Event
-        </Link>
-      </div>
+      <section className="mt-6 grid gap-5 md:grid-cols-4">
+        <div className="card">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-blue-300">
+            Admin Leagues
+          </p>
+          <h2 className="mt-3 text-4xl font-black text-white">
+            {adminMemberships?.length || 0}
+          </h2>
+        </div>
 
-      <section className="card">
-        <h2 className="mb-4 text-2xl font-black">Your Admin Leagues</h2>
+        <div className="card">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-red-300">
+            Open Events
+          </p>
+          <h2 className="mt-3 text-4xl font-black text-white">
+            {openEvents.length}
+          </h2>
+        </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          {adminMemberships?.map((membership: any) => (
-            <div
-              key={membership.league_id}
-              className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
-            >
-              <p className="text-lg font-black">{membership.leagues?.name}</p>
-              <p className="text-sm text-blue-300">Role: {membership.role}</p>
-            </div>
-          ))}
+        <div className="card">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-green-300">
+            Final Events
+          </p>
+          <h2 className="mt-3 text-4xl font-black text-white">
+            {finalEvents.length}
+          </h2>
+        </div>
+
+        <div className="card">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-yellow-300">
+            LM Leagues
+          </p>
+          <h2 className="mt-3 text-4xl font-black text-white">
+            {lmMemberships.length}
+          </h2>
         </div>
       </section>
 
-      <section className="mt-6 card">
-        <h2 className="mb-2 text-2xl font-black">Edit Events By League</h2>
+      <section className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="card">
+          <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-300">
+            Your Admin Leagues
+          </p>
 
-        <p className="mb-5 text-sm text-slate-300">
-          Open each league dropdown to edit events for that league. LM users can
-          also delete events.
-        </p>
+          <h2 className="mt-3 text-3xl font-black uppercase text-white">
+            League Access
+          </h2>
 
-        <div className="space-y-4">
-          {adminMemberships?.map((membership: any) => {
-            const leagueEvents = eventsByLeague.get(membership.league_id) || [];
-            const eventRole = roleByLeagueId.get(membership.league_id) || "";
-            const canDeleteEvents = eventRole === "LM";
+          <div className="mt-6 grid gap-4">
+            {adminMemberships?.map((membership: any) => {
+              const leagueEvents = eventsByLeague.get(membership.league_id) || [];
 
-            return (
-              <details
-                key={membership.league_id}
-                className="rounded-2xl border border-slate-800 bg-black/30 p-4"
-              >
-                <summary className="cursor-pointer text-xl font-black text-white">
-                  {membership.leagues?.name}{" "}
-                  <span className="text-sm font-bold text-blue-300">
-                    ({membership.role}) · {leagueEvents.length} event
-                    {leagueEvents.length === 1 ? "" : "s"}
-                  </span>
-                </summary>
+              return (
+                <div
+                  key={membership.league_id}
+                  className="rounded-[26px] border border-white/10 bg-black/45 p-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-black uppercase text-white">
+                        {membership.leagues?.name}
+                      </h3>
 
-                <div className="mt-4 space-y-3">
+                      <p className="mt-2 text-sm text-slate-300">
+                        {membership.leagues?.description || "No description yet."}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full border border-yellow-600 bg-yellow-950/60 px-3 py-1 text-xs font-black uppercase text-yellow-200">
+                      {membership.role}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-3">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Events
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-blue-300">
+                        {leagueEvents.length}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-3">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Visibility
+                      </p>
+                      <p className="mt-1 font-black uppercase text-red-300">
+                        {membership.leagues?.visibility}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <Link
+                      href={`/leagues/${membership.league_id}`}
+                      className="btn-primary text-center"
+                    >
+                      View League
+                    </Link>
+
+                    {membership.role === "LM" && (
+                      <Link
+                        href="/admin/events/new"
+                        className="btn-dark text-center"
+                      >
+                        New Event
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="card">
+          <p className="text-xs font-black uppercase tracking-[0.35em] text-blue-300">
+            Event Management
+          </p>
+
+          <h2 className="mt-3 text-3xl font-black uppercase text-white">
+            Edit Events By League
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-300">
+            Select a league, then choose the event you want to edit.
+          </p>
+
+          <div className="mt-6 space-y-5">
+            {adminMemberships?.map((membership: any) => {
+              const leagueEvents = eventsByLeague.get(membership.league_id) || [];
+
+              return (
+                <div
+                  key={membership.league_id}
+                  className="rounded-[26px] border border-white/10 bg-black/45 p-5"
+                >
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-xl font-black uppercase text-white">
+                        {membership.leagues?.name}
+                      </h3>
+
+                      <p className="text-sm text-slate-400">
+                        {membership.role} · {leagueEvents.length} event
+                        {leagueEvents.length === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </div>
+
                   {leagueEvents.length === 0 ? (
-                    <p className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-slate-300">
+                    <p className="rounded-2xl border border-white/10 bg-black/40 p-4 text-slate-300">
                       No events yet for this league.
                     </p>
                   ) : (
-                    leagueEvents.map((event: any) => (
-                      <div
-                        key={event.id}
-                        className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+                    <form className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                      <label>
+                        Select Event
+                        <select name="event_id" defaultValue="">
+                          <option value="">Choose an event to edit</option>
+                          {leagueEvents.map((event: any) => (
+                            <option key={event.id} value={event.id}>
+                              {event.name} — {event.status} —{" "}
+                              {event.event_date
+                                ? new Date(event.event_date).toLocaleDateString()
+                                : "No date"}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <button
+                        formAction={async (formData: FormData) => {
+                          "use server";
+
+                          const eventId = String(
+                            formData.get("event_id") || ""
+                          );
+
+                          if (!eventId) {
+                            redirect(
+                              "/admin?error=Choose an event before editing"
+                            );
+                          }
+
+                          redirect(`/admin/events/${eventId}/edit`);
+                        }}
+                        className="btn-primary"
+                        type="submit"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <h3 className="font-black">{event.name}</h3>
-
-                            <p className="text-slate-300">
-                              {new Date(event.event_date).toLocaleString()} ·{" "}
-                              {event.status}
-                            </p>
-
-                            <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
-                              Your role for this event: {eventRole}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link
-                              className="btn-primary py-2"
-                              href={`/admin/events/${event.id}/edit`}
-                            >
-                              Edit
-                            </Link>
-
-                            {canDeleteEvents && (
-                              <a
-                                className="rounded-xl border border-red-700 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950"
-                                href={`/admin/events/${event.id}/edit#delete-event`}
-                              >
-                                Delete
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        {canDeleteEvents ? (
-                          <details className="mt-4 rounded-xl border border-red-900 bg-red-950/20 p-3">
-                            <summary className="cursor-pointer font-black text-red-100">
-                              LM Quick Delete
-                            </summary>
-
-                            <p className="mt-2 text-sm text-red-100/80">
-                              This removes the event, matches, picks,
-                              interference bets, and event leaderboard points.
-                              Type DELETE to confirm.
-                            </p>
-
-                            <form
-                              action={deleteEventFromAdminList}
-                              className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-end"
-                            >
-                              <input
-                                type="hidden"
-                                name="event_id"
-                                value={event.id}
-                              />
-
-                              <label>
-                                Confirm Delete
-                                <input
-                                  name="confirm_delete"
-                                  placeholder="DELETE"
-                                  required
-                                />
-                              </label>
-
-                              <button
-                                className="rounded-xl bg-red-700 px-5 py-3 font-black text-white hover:bg-red-800"
-                                type="submit"
-                              >
-                                Delete Event
-                              </button>
-                            </form>
-                          </details>
-                        ) : (
-                          <p className="mt-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-300">
-                            Delete hidden: only the LM for this event&apos;s
-                            league can delete it.
-                          </p>
-                        )}
-                      </div>
-                    ))
+                        Edit Event
+                      </button>
+                    </form>
                   )}
                 </div>
-              </details>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </section>
       </section>
 
       {lmLeagueIds.length > 0 && (
-        <section className="mt-6 card">
-          <h2 className="mb-4 text-2xl font-black">League Manager Controls</h2>
+        <section className="card mt-6">
+          <p className="text-xs font-black uppercase tracking-[0.35em] text-red-300">
+            League Manager Controls
+          </p>
 
-          <div className="space-y-5">
+          <h2 className="mt-3 text-3xl font-black uppercase text-white">
+            LM Tools
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-300">
+            Assign ALMs, remove members, transfer LM ownership, or delete a
+            league.
+          </p>
+
+          <div className="mt-6 space-y-6">
             {lmMemberships.map((membership: any) => {
               const leagueMembers =
                 membersByLeague.get(membership.league_id) || [];
@@ -326,29 +424,29 @@ export default async function AdminPage({
               return (
                 <div
                   key={membership.league_id}
-                  className="rounded-2xl border border-slate-800 bg-black/30 p-4"
+                  className="rounded-[28px] border border-white/10 bg-black/40 p-5"
                 >
-                  <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <h3 className="text-xl font-black">
+                      <h3 className="text-2xl font-black uppercase text-white">
                         {membership.leagues?.name}
                       </h3>
 
                       <p className="text-sm text-slate-300">
-                        Only the LM can assign/remove ALM, remove league members,
-                        transfer LM, or delete the league.
+                        Only the LM can assign/remove ALM, remove league
+                        members, transfer LM, or delete the league.
                       </p>
                     </div>
 
-                    <span className="rounded-full border border-red-700 bg-red-950 px-3 py-1 text-xs font-bold text-red-100">
-                      LM ONLY
+                    <span className="rounded-full border border-red-700 bg-red-950 px-3 py-1 text-xs font-bold uppercase text-red-100">
+                      LM Only
                     </span>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-xl border border-blue-900 bg-blue-950/20 p-4">
-                      <h4 className="mb-3 font-black">
-                        Assign Assistant League Manager
+                    <div className="rounded-2xl border border-blue-900 bg-blue-950/20 p-4">
+                      <h4 className="mb-3 font-black uppercase text-blue-100">
+                        Assign ALM
                       </h4>
 
                       <form action={assignAlm} className="space-y-3">
@@ -361,9 +459,7 @@ export default async function AdminPage({
                         <label>
                           Member
                           <select name="member_id" required defaultValue="">
-                            <option value="">
-                              Choose an active league member
-                            </option>
+                            <option value="">Choose an active league member</option>
 
                             {assignableMembers.map((member: any) => (
                               <option key={member.id} value={member.id}>
@@ -373,13 +469,6 @@ export default async function AdminPage({
                             ))}
                           </select>
                         </label>
-
-                        {assignableMembers.length === 0 && (
-                          <p className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-sm text-slate-300">
-                            No eligible members yet. A user must join this
-                            league first before they can be assigned as ALM.
-                          </p>
-                        )}
 
                         <button
                           className="btn-primary w-full py-2"
@@ -400,7 +489,7 @@ export default async function AdminPage({
                             <form
                               key={member.id}
                               action={removeAlm}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 p-2"
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 p-2"
                             >
                               <input
                                 type="hidden"
@@ -419,7 +508,7 @@ export default async function AdminPage({
                               </span>
 
                               <button
-                                className="rounded-lg border border-slate-700 px-3 py-1 text-xs font-bold hover:border-red-500"
+                                className="rounded-lg border border-white/10 px-3 py-1 text-xs font-bold hover:border-red-500"
                                 type="submit"
                               >
                                 Remove ALM
@@ -430,15 +519,10 @@ export default async function AdminPage({
                       )}
                     </div>
 
-                    <div className="rounded-xl border border-orange-900 bg-orange-950/20 p-4">
-                      <h4 className="mb-3 font-black text-orange-100">
-                        Remove League Member
+                    <div className="rounded-2xl border border-orange-900 bg-orange-950/20 p-4">
+                      <h4 className="mb-3 font-black uppercase text-orange-100">
+                        Remove Member
                       </h4>
-
-                      <p className="mb-3 text-sm text-orange-100/80">
-                        Remove a member from this league. This only removes
-                        them from this specific league.
-                      </p>
 
                       <form action={removeLeagueMember} className="space-y-3">
                         <input
@@ -461,13 +545,6 @@ export default async function AdminPage({
                           </select>
                         </label>
 
-                        {removableMembers.length === 0 && (
-                          <p className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-sm text-slate-300">
-                            No removable members are available. The LM cannot
-                            be removed from their own league.
-                          </p>
-                        )}
-
                         <label>
                           Type REMOVE to confirm
                           <input
@@ -478,7 +555,7 @@ export default async function AdminPage({
                         </label>
 
                         <button
-                          className="w-full rounded-xl bg-orange-700 px-4 py-3 font-black text-white hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="w-full rounded-2xl bg-orange-700 px-4 py-3 font-black uppercase text-white hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-50"
                           type="submit"
                           disabled={removableMembers.length === 0}
                         >
@@ -487,16 +564,10 @@ export default async function AdminPage({
                       </form>
                     </div>
 
-                    <div className="rounded-xl border border-red-900 bg-red-950/20 p-4">
-                      <h4 className="mb-3 font-black text-red-100">
-                        Transfer League Manager
+                    <div className="rounded-2xl border border-red-900 bg-red-950/20 p-4">
+                      <h4 className="mb-3 font-black uppercase text-red-100">
+                        Transfer LM
                       </h4>
-
-                      <p className="mb-3 text-sm text-red-100/80">
-                        Assign a new LM if the current creator/manager wants to
-                        step down or leave. The selected member becomes LM and
-                        the current LM becomes a regular member.
-                      </p>
 
                       <form action={transferLm} className="space-y-3">
                         <input
@@ -508,9 +579,7 @@ export default async function AdminPage({
                         <label>
                           New League Manager
                           <select name="member_id" required defaultValue="">
-                            <option value="">
-                              Choose an active league member
-                            </option>
+                            <option value="">Choose an active member</option>
 
                             {transferLmMembers.map((member: any) => (
                               <option key={member.id} value={member.id}>
@@ -520,13 +589,6 @@ export default async function AdminPage({
                             ))}
                           </select>
                         </label>
-
-                        {transferLmMembers.length === 0 && (
-                          <p className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-sm text-slate-300">
-                            No other active members are available to become LM
-                            yet.
-                          </p>
-                        )}
 
                         <label>
                           Type TRANSFER to confirm
@@ -547,15 +609,10 @@ export default async function AdminPage({
                       </form>
                     </div>
 
-                    <div className="rounded-xl border border-red-900 bg-red-950/20 p-4">
-                      <h4 className="mb-3 font-black text-red-100">
+                    <div className="rounded-2xl border border-red-900 bg-red-950/20 p-4">
+                      <h4 className="mb-3 font-black uppercase text-red-100">
                         Delete League
                       </h4>
-
-                      <p className="mb-3 text-sm text-red-100/80">
-                        This permanently deletes the league and cascades its
-                        events, matches, picks, bets, and results.
-                      </p>
 
                       <form action={deleteLeague} className="space-y-3">
                         <input
@@ -573,10 +630,7 @@ export default async function AdminPage({
                           />
                         </label>
 
-                        <button
-                          className="btn-danger w-full py-2"
-                          type="submit"
-                        >
+                        <button className="btn-danger w-full py-2" type="submit">
                           Delete League
                         </button>
                       </form>

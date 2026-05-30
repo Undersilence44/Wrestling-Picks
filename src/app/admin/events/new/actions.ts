@@ -32,6 +32,21 @@ export async function createEvent(formData: FormData) {
     redirect("/admin/events/new?error=Missing required fields");
   }
 
+  const { data: membership } = await supabase
+    .from("league_members")
+    .select("id")
+    .eq("league_id", league_id)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .eq("role", "LM")
+    .maybeSingle();
+
+  if (!membership) {
+    redirect(
+      "/admin?error=Only League Managers can create events. Assistant League Managers can edit existing events but cannot create new events."
+    );
+  }
+
   const { data: league } = await supabase
     .from("leagues")
     .select("id, scoring_type, fixed_points, perfect_bonus")
@@ -42,19 +57,6 @@ export async function createEvent(formData: FormData) {
     redirect("/admin/events/new?error=League not found");
   }
 
-  const { data: membership } = await supabase
-    .from("league_members")
-    .select("id")
-    .eq("league_id", league_id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .in("role", ["LM", "ALM"])
-    .maybeSingle();
-
-  if (!membership) {
-    redirect("/leagues?error=Only LM or ALM can create events");
-  }
-
   const { data: event, error: eventError } = await supabase
     .from("events")
     .insert({
@@ -63,16 +65,9 @@ export async function createEvent(formData: FormData) {
       event_date,
       status: "open",
       created_by: user.id,
-
       fixed_points:
-        league.scoring_type === "fixed"
-          ? league.fixed_points || 1
-          : 0,
-
-      perfect_bonus:
-        league.scoring_type === "fixed"
-          ? perfect_bonus
-          : 0,
+        league.scoring_type === "fixed" ? league.fixed_points || 1 : 0,
+      perfect_bonus: league.scoring_type === "fixed" ? perfect_bonus : 0,
     })
     .select("id")
     .single();
@@ -88,28 +83,22 @@ export async function createEvent(formData: FormData) {
   let createdMatches = 0;
 
   for (let i = 1; i <= MATCH_COUNT; i++) {
-    const matchTitle = String(
-      formData.get(`match_title_${i}`) || ""
-    ).trim();
-
+    const matchTitle = String(formData.get(`match_title_${i}`) || "").trim();
     const options = collectOptions(formData, i);
 
     if (!matchTitle || options.length < 2) continue;
 
-    const { error: matchError } = await supabase
-      .from("matches")
-      .insert({
-        event_id: event.id,
-        match_order: i,
-        match_title: matchTitle,
-
-        competitor_a: options[0],
-        competitor_b: options[1],
-        competitor_c: options[2] || null,
-        competitor_d: options[3] || null,
-        competitor_e: options[4] || null,
-        competitor_f: options[5] || null,
-      });
+    const { error: matchError } = await supabase.from("matches").insert({
+      event_id: event.id,
+      match_order: i,
+      match_title: matchTitle,
+      competitor_a: options[0],
+      competitor_b: options[1],
+      competitor_c: options[2] || null,
+      competitor_d: options[3] || null,
+      competitor_e: options[4] || null,
+      competitor_f: options[5] || null,
+    });
 
     if (!matchError) {
       createdMatches++;
