@@ -33,7 +33,7 @@ export async function updateEvent(formData: FormData) {
 
   const { data: membership } = await supabase
     .from("league_members")
-    .select("id")
+    .select("id, role")
     .eq("league_id", event.league_id)
     .eq("user_id", user.id)
     .eq("status", "active")
@@ -45,6 +45,15 @@ export async function updateEvent(formData: FormData) {
   }
 
   const newStatus = String(formData.get("status") || "open");
+  const isLm = membership.role === "LM";
+
+  if (newStatus === "final" && !isLm) {
+    redirect(
+      `/admin/events/${event_id}/edit?error=${encodeURIComponent(
+        "Assistant League Managers can select winners, but only the League Manager can finalize events."
+      )}`
+    );
+  }
 
   const { data: league } = await supabase
     .from("leagues")
@@ -60,8 +69,8 @@ export async function updateEvent(formData: FormData) {
       name: String(formData.get("name") || "").trim(),
       event_date: String(formData.get("event_date") || ""),
       status: newStatus,
-      fixed_points: isFixed ? Number(formData.get("fixed_points") || 1) : 0,
-      perfect_bonus: isFixed ? Number(formData.get("perfect_bonus") || 0) : 0,
+      fixed_points: isFixed && isLm ? Number(formData.get("fixed_points") || 1) : 0,
+      perfect_bonus: isFixed && isLm ? Number(formData.get("perfect_bonus") || 0) : 0,
     })
     .eq("id", event_id);
 
