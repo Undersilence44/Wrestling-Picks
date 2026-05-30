@@ -26,11 +26,7 @@ function Avatar({
   return (
     <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-yellow-500 bg-yellow-950 text-sm font-black text-white">
       {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt="Profile"
-          className="h-full w-full object-cover"
-        />
+        <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
       ) : (
         getInitials(email)
       )}
@@ -50,22 +46,21 @@ export default async function NavBar() {
   let avatarUrl: string | null = null;
 
   if (user) {
-    const [{ data: adminMemberships }, { data: profile }] =
-      await Promise.all([
-        supabase
-          .from("league_members")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("status", "active")
-          .in("role", ["LM", "ALM"])
-          .limit(1),
+    const [{ data: adminMemberships }, { data: profile }] = await Promise.all([
+      supabase
+        .from("league_members")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .in("role", ["LM", "ALM"])
+        .limit(1),
 
-        supabase
-          .from("profiles")
-          .select("display_name, full_name, email, avatar_url")
-          .eq("id", user.id)
-          .maybeSingle(),
-      ]);
+      supabase
+        .from("profiles")
+        .select("display_name, full_name, email, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
 
     canSeeAdmin = Boolean(adminMemberships?.length);
     avatarUrl = profile?.avatar_url || null;
@@ -81,7 +76,7 @@ export default async function NavBar() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/5 bg-black/88 backdrop-blur-2xl">
       <nav className="mx-auto flex h-[78px] w-full max-w-[1700px] items-center justify-between px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 items-center gap-5">
           <Link href="/" className="flex shrink-0 items-center">
             <Image
               src="/logo.png"
@@ -89,7 +84,7 @@ export default async function NavBar() {
               width={260}
               height={90}
               priority
-              className="h-10 w-auto object-contain lg:h-12"
+              className="h-8 w-auto object-contain sm:h-10 lg:h-12"
             />
           </Link>
 
@@ -99,6 +94,20 @@ export default async function NavBar() {
             </p>
 
             <p className="mt-0.5 text-[11px] font-black uppercase tracking-[0.2em]">
+              <span className="text-blue-400">Predict.</span>{" "}
+              <span className="text-white">Compete.</span>{" "}
+              <span className="text-red-500">Dominate.</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 justify-center px-2 lg:hidden">
+          <div className="text-center leading-none">
+            <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-200 sm:text-[9px]">
+              PRO-WRESTLINGPICKS.COM
+            </p>
+
+            <p className="mt-1 text-[7px] font-black uppercase tracking-[0.1em] sm:text-[8px]">
               <span className="text-blue-400">Predict.</span>{" "}
               <span className="text-white">Compete.</span>{" "}
               <span className="text-red-500">Dominate.</span>
@@ -170,7 +179,7 @@ export default async function NavBar() {
           )}
         </div>
 
-        <details className="relative lg:hidden">
+        <details className="relative shrink-0 lg:hidden">
           <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-white/10 bg-black/70 text-white">
             ☰
           </summary>
@@ -184,43 +193,43 @@ export default async function NavBar() {
 
             <div className="grid gap-1 p-3">
               {links.map(([label, href]) => (
-                <Link
+                <a
                   key={href}
                   href={href}
                   className="rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.15em] text-slate-200 transition hover:bg-white/5"
                 >
                   {label}
-                </Link>
+                </a>
               ))}
 
               {canSeeAdmin && (
-                <Link
+                <a
                   href="/admin"
                   className="rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.15em] text-blue-300 transition hover:bg-white/5"
                 >
                   Admin
-                </Link>
+                </a>
               )}
 
               {!user ? (
                 <div className="mt-3 grid gap-2">
-                  <Link
+                  <a
                     href="/login"
                     className="rounded-2xl border border-white/10 bg-black px-4 py-3 text-center text-sm font-black uppercase tracking-[0.18em] text-white"
                   >
                     Login
-                  </Link>
+                  </a>
 
-                  <Link
+                  <a
                     href="/signup"
                     className="rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-black uppercase tracking-[0.18em] text-white"
                   >
                     Sign Up
-                  </Link>
+                  </a>
                 </div>
               ) : (
                 <div className="mt-3 rounded-2xl border border-yellow-500/20 bg-yellow-950/10 p-4">
-                  <Link href="/account" className="flex items-center gap-3">
+                  <a href="/account" className="flex items-center gap-3">
                     <Avatar avatarUrl={avatarUrl} email={user.email} />
 
                     <div>
@@ -232,7 +241,7 @@ export default async function NavBar() {
                         Champion
                       </p>
                     </div>
-                  </Link>
+                  </a>
 
                   <div className="mt-4">
                     <LogoutButton />
