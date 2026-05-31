@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import {
   addMatchToEvent,
+  removeMatchFromEvent,
   updateEvent,
   updateInterferenceBetPoints,
 } from "./actions";
@@ -285,8 +286,8 @@ export default async function EditEventPage({
           </h2>
 
           <p className="mt-2 text-sm text-slate-300">
-            Open the match you want to edit. This keeps the page shorter while
-            still saving all event changes together.
+            Open the match you want to edit. LM and ALM can remove matches
+            unless the event is finalized.
           </p>
 
           {matchesError && (
@@ -367,6 +368,24 @@ export default async function EditEventPage({
                         </select>
                       </label>
                     </div>
+
+                    {event.status !== "final" && (
+                      <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/20 p-4">
+                        <p className="text-sm text-red-100">
+                          Removing this match also removes saved picks for this match.
+                        </p>
+
+                        <button
+                          formAction={removeMatchFromEvent}
+                          className="mt-3 rounded-2xl border border-red-700 bg-red-950/60 px-5 py-3 text-sm font-black uppercase text-red-100 hover:bg-red-900"
+                          type="submit"
+                          name="match_id"
+                          value={match.id}
+                        >
+                          Remove Match
+                        </button>
+                      </div>
+                    )}
                   </details>
                 );
               })}

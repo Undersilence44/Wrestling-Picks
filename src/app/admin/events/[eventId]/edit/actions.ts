@@ -277,3 +277,68 @@ export async function updateInterferenceBetPoints(formData: FormData) {
     `/admin/events/${event_id}/edit?message=Interference points saved and leaderboard updated`
   );
 }
+export async function removeMatchFromEvent(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const event_id = String(formData.get("event_id") || "");
+  const match_id = String(formData.get("match_id") || "");
+
+  if (!event_id || !match_id) {
+    redirect(`/admin/events/${event_id}/edit?error=Missing event or match id`);
+  }
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("id, league_id, status")
+    .eq("id", event_id)
+    .maybeSingle();
+
+  if (!event) {
+    redirect("/admin?error=Event not found");
+  }
+
+  const { data: membership } = await supabase
+    .from("league_members")
+    .select("id")
+    .eq("league_id", event.league_id)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .in("role", ["LM", "ALM"])
+    .maybeSingle();
+
+  if (!membership) {
+    redirect("/admin?error=Only LM or ALM can remove matches");
+  }
+
+  if (event.status === "final") {
+    redirect(
+      `/admin/events/${event_id}/edit?error=Cannot remove matches from a finalized event`
+    );
+  }
+
+  await supabase
+    .from("picks")
+    .delete()
+    .eq("event_id", event_id)
+    .eq("match_id", match_id);
+
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("id", match_id)
+    .eq("event_id", event_id);
+
+  if (error) {
+    redirect(
+      `/admin/events/${event_id}/edit?error=${encodeURIComponent(error.message)}`
+    );
+  }
+
+  redirect(`/admin/events/${event_id}/edit?message=Match removed`);
+}
