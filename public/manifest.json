@@ -1,6 +1,6 @@
 {
   "name": "Pro Wrestling Picks",
-  "short_name": "Wrestling Picks",
+  "short_name": "Pro-WrestlingPicks",
   "description": "Fantasy-style wrestling picks league app.",
   "start_url": "/",
   "scope": "/",
@@ -27,3 +27,4 @@
     }
   ]
 }
+

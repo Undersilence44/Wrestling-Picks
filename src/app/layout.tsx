@@ -7,13 +7,13 @@ import NavBar from "@/components/NavBar";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
-  title: "Wrestling Picks",
+  title: "Pro Wrestling Picks",
   description: "Fantasy-style wrestling picks league app",
   manifest: "/manifest.json",
   applicationName: "Pro Wrestling Picks",
   appleWebApp: {
     capable: true,
-    title: "Wrestling Picks",
+    title: "Pro Wrestling Picks",
     statusBarStyle: "black-translucent",
   },
   icons: {
