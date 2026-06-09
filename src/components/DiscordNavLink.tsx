@@ -22,7 +22,7 @@ export default function DiscordNavLink({
         className="flex items-center justify-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-950/30 px-4 py-3 text-center text-sm font-black uppercase tracking-[0.18em] text-indigo-100 transition hover:bg-indigo-900/40"
       >
         <img
-          src="/icons/Discord.png"
+          src="/icons/discord.svg"
           alt=""
           className="h-5 w-5 shrink-0"
         />
