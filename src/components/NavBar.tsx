@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "./LogoutButton";
+import DiscordNavLink from "./DiscordNavLink";
 
 const links = [
   ["Home", "/"],
@@ -26,7 +27,11 @@ function Avatar({
   return (
     <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-yellow-500 bg-yellow-950 text-sm font-black text-white">
       {avatarUrl ? (
-        <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+        <img
+          src={avatarUrl}
+          alt="Profile"
+          className="h-full w-full object-cover"
+        />
       ) : (
         getInitials(email)
       )}
@@ -101,44 +106,34 @@ export default async function NavBar() {
           </div>
         </div>
 
-        <div className="flex flex-1 justify-center px-2 lg:hidden">
-          <div className="text-center leading-none">
-            <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-200 sm:text-[9px]">
-              PRO-WRESTLINGPICKS.COM
-            </p>
+        <div className="hidden flex-1 justify-center px-3 lg:flex">
+          <div className="flex items-center gap-8">
+            {links.map(([label, href]) => (
+              <Link
+                key={href}
+                href={href}
+                className="group relative text-sm font-black uppercase tracking-[0.18em] text-white/85 transition hover:text-white"
+              >
+                {label}
+                <span className="absolute -bottom-[18px] left-0 h-[2px] w-full origin-left scale-x-0 bg-red-500 transition duration-300 group-hover:scale-x-100" />
+              </Link>
+            ))}
 
-            <p className="mt-1 text-[7px] font-black uppercase tracking-[0.1em] sm:text-[8px]">
-              <span className="text-blue-400">Predict.</span>{" "}
-              <span className="text-white">Compete.</span>{" "}
-              <span className="text-red-500">Dominate.</span>
-            </p>
+            {canSeeAdmin && (
+              <Link
+                href="/admin"
+                className="group relative text-sm font-black uppercase tracking-[0.18em] text-blue-300 transition hover:text-white"
+              >
+                Admin
+                <span className="absolute -bottom-[18px] left-0 h-[2px] w-full origin-left scale-x-0 bg-blue-500 transition duration-300 group-hover:scale-x-100" />
+              </Link>
+            )}
           </div>
         </div>
 
-        <div className="hidden items-center gap-8 lg:flex">
-          {links.map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className="group relative text-sm font-black uppercase tracking-[0.18em] text-white/85 transition hover:text-white"
-            >
-              {label}
-              <span className="absolute -bottom-[18px] left-0 h-[2px] w-full origin-left scale-x-0 bg-red-500 transition duration-300 group-hover:scale-x-100" />
-            </Link>
-          ))}
-
-          {canSeeAdmin && (
-            <Link
-              href="/admin"
-              className="group relative text-sm font-black uppercase tracking-[0.18em] text-blue-300 transition hover:text-white"
-            >
-              Admin
-              <span className="absolute -bottom-[18px] left-0 h-[2px] w-full origin-left scale-x-0 bg-blue-500 transition duration-300 group-hover:scale-x-100" />
-            </Link>
-          )}
-        </div>
-
         <div className="hidden items-center gap-4 lg:flex">
+          <DiscordNavLink />
+
           {!user ? (
             <>
               <Link
@@ -180,11 +175,11 @@ export default async function NavBar() {
         </div>
 
         <details className="relative shrink-0 lg:hidden">
-          <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-white/10 bg-black/70 text-white">
+          <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-white/10 bg-black/70 text-xl font-black text-white">
             ☰
           </summary>
 
-          <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-3xl border border-white/10 bg-black/95 shadow-2xl shadow-black">
+          <div className="absolute right-0 mt-3 w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-3xl border border-white/10 bg-black/95 shadow-2xl shadow-black">
             <div className="border-b border-white/5 px-5 py-4">
               <p className="text-sm font-black uppercase tracking-[0.25em] text-white">
                 Navigation
@@ -208,6 +203,17 @@ export default async function NavBar() {
                   className="rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.15em] text-blue-300 transition hover:bg-white/5"
                 >
                   Admin
+                </a>
+              )}
+
+              <DiscordNavLink mobile />
+
+              {user && (
+                <a
+                  href="/account"
+                  className="rounded-2xl border border-yellow-500/20 bg-yellow-950/10 px-4 py-3 text-sm font-black uppercase tracking-[0.15em] text-yellow-200 transition hover:bg-yellow-950/20"
+                >
+                  My Account
                 </a>
               )}
 
