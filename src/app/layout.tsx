@@ -1,9 +1,10 @@
-import type { Metadata, Viewport } from "next";
+kimport type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Wrestling Picks",
@@ -17,11 +18,23 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+      {
+        url: "/icons/app-icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icons/app-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
     ],
   },
 };
@@ -49,7 +62,8 @@ export default function RootLayout({
         <footer className="mt-10 border-t border-white/10 bg-black/40 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 px-4 py-6 text-center text-sm text-slate-400 sm:flex-row sm:justify-between sm:text-left">
             <div>
-              © {new Date().getFullYear()} Pro Wrestling Picks. All rights reserved.
+              © {new Date().getFullYear()} Pro Wrestling Picks. All rights
+              reserved.
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
@@ -70,6 +84,8 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+
+        <ServiceWorkerRegister />
 
         <Analytics />
         <SpeedInsights />
