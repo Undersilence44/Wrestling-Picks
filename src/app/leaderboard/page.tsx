@@ -9,6 +9,44 @@ function interferenceClass(value: number) {
   return "text-slate-300";
 }
 
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  return name.slice(0, 1).toUpperCase();
+}
+
+function PlayerAvatar({
+  avatarUrl,
+  name,
+  size = "md",
+}: {
+  avatarUrl?: string | null;
+  name?: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  const sizeClass =
+    size === "lg"
+      ? "h-20 w-20 text-2xl"
+      : size === "sm"
+        ? "h-10 w-10 text-sm"
+        : "h-12 w-12 text-base";
+
+  return (
+    <span
+      className={`grid ${sizeClass} shrink-0 place-items-center overflow-hidden rounded-full border border-yellow-500 bg-yellow-950 font-black text-white`}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={name || "Player avatar"}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        getInitials(name)
+      )}
+    </span>
+  );
+}
+
 export default async function LeaderboardPage({
   searchParams,
 }: {
@@ -84,33 +122,67 @@ export default async function LeaderboardPage({
 
   const selectedLeagueId = params.league || leagues[0]?.id || "";
   const selectedLeague = leagues.find(
-    (league: any) => league.id === selectedLeagueId
+    (league: any) => league.id === selectedLeagueId,
   );
 
   const { data: rows, error: rowsError } = selectedLeagueId
     ? await supabase
         .from("leaderboard_view")
         .select(
-          "league_id, league_name, user_id, display_name, total_points, correct_picks, wrong_picks, perfect_events, interference_total"
+          "league_id, league_name, user_id, display_name, total_points, correct_picks, wrong_picks, perfect_events, interference_total",
         )
         .eq("league_id", selectedLeagueId)
         .order("total_points", { ascending: false })
         .order("correct_picks", { ascending: false })
     : { data: [] as any[], error: null };
 
+  const userIds = Array.from(
+    new Set((rows || []).map((row: any) => row.user_id).filter(Boolean)),
+  );
+
+  const { data: profiles } = userIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, avatar_url, display_name, full_name, email")
+        .in("id", userIds)
+    : { data: [] as any[] };
+
+  const profileMap = new Map<string, any>();
+
+  for (const profile of profiles || []) {
+    profileMap.set(profile.id, profile);
+  }
+
   const standings = rows || [];
   const topThree = standings.slice(0, 3);
 
   const leader = standings[0];
+
   const perfectLeader = [...standings].sort(
     (a: any, b: any) =>
-      Number(b.perfect_events || 0) - Number(a.perfect_events || 0)
+      Number(b.perfect_events || 0) - Number(a.perfect_events || 0),
   )[0];
 
   const correctLeader = [...standings].sort(
     (a: any, b: any) =>
-      Number(b.correct_picks || 0) - Number(a.correct_picks || 0)
+      Number(b.correct_picks || 0) - Number(a.correct_picks || 0),
   )[0];
+
+  function avatarFor(row: any) {
+    return profileMap.get(row.user_id)?.avatar_url || null;
+  }
+
+  function displayNameFor(row: any) {
+    const profile = profileMap.get(row.user_id);
+
+    return (
+      profile?.display_name ||
+      profile?.full_name ||
+      profile?.email ||
+      row.display_name ||
+      "Unknown Player"
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10">
@@ -224,48 +296,89 @@ export default async function LeaderboardPage({
               <p className="text-xs font-black uppercase tracking-[0.3em] text-red-300">
                 Points Leader
               </p>
-              <h2 className="mt-3 truncate text-2xl font-black text-white">
-                {leader?.display_name || "None"}
-              </h2>
-              <p className="mt-2 text-sm text-slate-300">
-                {leader ? `${leader.total_points} pts` : "No points yet"}
-              </p>
+
+              {leader ? (
+                <div className="mt-4 flex items-center gap-3">
+                  <PlayerAvatar
+                    avatarUrl={avatarFor(leader)}
+                    name={displayNameFor(leader)}
+                    size="sm"
+                  />
+
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-black text-white">
+                      {displayNameFor(leader)}
+                    </h2>
+                    <p className="text-sm text-slate-300">
+                      {leader.total_points} pts
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-300">No points yet</p>
+              )}
             </div>
 
             <div className="card">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-yellow-300">
                 Perfect Leader
               </p>
-              <h2 className="mt-3 truncate text-2xl font-black text-white">
-                {perfectLeader?.display_name || "None"}
-              </h2>
-              <p className="mt-2 text-sm text-slate-300">
-                {perfectLeader
-                  ? `${perfectLeader.perfect_events} perfects`
-                  : "No perfects yet"}
-              </p>
+
+              {perfectLeader ? (
+                <div className="mt-4 flex items-center gap-3">
+                  <PlayerAvatar
+                    avatarUrl={avatarFor(perfectLeader)}
+                    name={displayNameFor(perfectLeader)}
+                    size="sm"
+                  />
+
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-black text-white">
+                      {displayNameFor(perfectLeader)}
+                    </h2>
+                    <p className="text-sm text-slate-300">
+                      {perfectLeader.perfect_events} perfects
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-300">No perfects yet</p>
+              )}
             </div>
 
             <div className="card">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-green-300">
                 Most Correct
               </p>
-              <h2 className="mt-3 truncate text-2xl font-black text-white">
-                {correctLeader?.display_name || "None"}
-              </h2>
-              <p className="mt-2 text-sm text-slate-300">
-                {correctLeader
-                  ? `${correctLeader.correct_picks} correct`
-                  : "No picks yet"}
-              </p>
+
+              {correctLeader ? (
+                <div className="mt-4 flex items-center gap-3">
+                  <PlayerAvatar
+                    avatarUrl={avatarFor(correctLeader)}
+                    name={displayNameFor(correctLeader)}
+                    size="sm"
+                  />
+
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-black text-white">
+                      {displayNameFor(correctLeader)}
+                    </h2>
+                    <p className="text-sm text-slate-300">
+                      {correctLeader.correct_picks} correct
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-300">No picks yet</p>
+              )}
             </div>
           </section>
 
           <section className="mt-6 grid gap-5 lg:grid-cols-3">
             {topThree.map((row: any, index: number) => {
               const rank = index + 1;
-              const medal =
-                rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉";
+              const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉";
+              const name = displayNameFor(row);
 
               return (
                 <div
@@ -278,14 +391,22 @@ export default async function LeaderboardPage({
                         : "border-orange-500/40"
                   }`}
                 >
-                  <p className="text-5xl">{medal}</p>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-5xl">{medal}</p>
 
-                  <p className="mt-4 text-xs font-black uppercase tracking-[0.35em] text-slate-400">
+                    <PlayerAvatar
+                      avatarUrl={avatarFor(row)}
+                      name={name}
+                      size="lg"
+                    />
+                  </div>
+
+                  <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-slate-400">
                     Rank #{rank}
                   </p>
 
                   <h3 className="mt-3 truncate text-3xl font-black uppercase text-white">
-                    {row.display_name}
+                    {name}
                   </h3>
 
                   <p className="mt-3 text-4xl font-black text-red-300">
@@ -326,7 +447,7 @@ export default async function LeaderboardPage({
               </p>
             </div>
 
-            <table className="w-full min-w-[850px] text-left">
+            <table className="w-full min-w-[900px] text-left">
               <thead>
                 <tr className="border-b border-white/10 text-blue-300">
                   <th className="p-3">Rank</th>
@@ -344,6 +465,7 @@ export default async function LeaderboardPage({
                   standings.map((row: any, index: number) => {
                     const isCurrentUser = row.user_id === user.id;
                     const interference = Number(row.interference_total || 0);
+                    const name = displayNameFor(row);
 
                     return (
                       <tr
@@ -357,12 +479,25 @@ export default async function LeaderboardPage({
                         </td>
 
                         <td className="p-3 font-bold text-white">
-                          {row.display_name}
-                          {isCurrentUser && (
-                            <span className="ml-2 rounded-full border border-blue-700 bg-blue-950 px-2 py-1 text-[10px] font-black uppercase text-blue-200">
-                              You
-                            </span>
-                          )}
+                          <div className="flex items-center gap-3">
+                            <PlayerAvatar
+                              avatarUrl={avatarFor(row)}
+                              name={name}
+                              size="sm"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="truncate font-black text-white">
+                                {name}
+                              </p>
+
+                              {isCurrentUser && (
+                                <span className="mt-1 inline-block rounded-full border border-blue-700 bg-blue-950 px-2 py-1 text-[10px] font-black uppercase text-blue-200">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         <td className="p-3 font-black text-red-300">
@@ -375,7 +510,11 @@ export default async function LeaderboardPage({
 
                         <td className="p-3">{row.perfect_events}</td>
 
-                        <td className={`p-3 font-bold ${interferenceClass(interference)}`}>
+                        <td
+                          className={`p-3 font-bold ${interferenceClass(
+                            interference,
+                          )}`}
+                        >
                           {row.interference_total}
                         </td>
                       </tr>
