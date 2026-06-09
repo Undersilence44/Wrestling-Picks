@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -8,6 +8,30 @@ import NavBar from "@/components/NavBar";
 export const metadata: Metadata = {
   title: "Wrestling Picks",
   description: "Fantasy-style wrestling picks league app",
+  manifest: "/manifest.json",
+  applicationName: "Pro Wrestling Picks",
+  appleWebApp: {
+    capable: true,
+    title: "Wrestling Picks",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#020617",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -20,9 +44,7 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col">
         <NavBar />
 
-        <main className="flex-1">
-          {children}
-        </main>
+        <main className="flex-1">{children}</main>
 
         <footer className="mt-10 border-t border-white/10 bg-black/40 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 px-4 py-6 text-center text-sm text-slate-400 sm:flex-row sm:justify-between sm:text-left">
@@ -31,17 +53,11 @@ export default function RootLayout({
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/privacy"
-                className="transition hover:text-white"
-              >
+              <Link href="/privacy" className="transition hover:text-white">
                 Privacy Policy
               </Link>
 
-              <Link
-                href="/terms"
-                className="transition hover:text-white"
-              >
+              <Link href="/terms" className="transition hover:text-white">
                 Terms of Use
               </Link>
 

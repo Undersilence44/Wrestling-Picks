@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import PwaInstallCard from "@/components/PwaInstallCard";
 
 export default function HomePage() {
   return (
@@ -35,11 +36,14 @@ export default function HomePage() {
         </div>
       </section>
 
+      <PwaInstallCard />
+
       <section className="mt-6 grid gap-5 md:grid-cols-3">
         <div className="card">
           <h2 className="text-2xl font-black uppercase text-red-400">
             Ranked Picks
           </h2>
+
           <p className="mt-3 text-slate-300">
             Confidence points are based on match rankings. The higher your
             confidence, the more points you earn.
@@ -50,6 +54,7 @@ export default function HomePage() {
           <h2 className="text-2xl font-black uppercase text-blue-400">
             Fixed Picks
           </h2>
+
           <p className="mt-3 text-slate-300">
             Every correct match can use a fixed point value chosen by your
             league.
@@ -60,6 +65,7 @@ export default function HomePage() {
           <h2 className="text-2xl font-black uppercase text-yellow-400">
             League Control
           </h2>
+
           <p className="mt-3 text-slate-300">
             League Managers and Assistant League Managers control events,
             members, scoring, and winners.
