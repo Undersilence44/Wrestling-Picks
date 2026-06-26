@@ -304,6 +304,7 @@ export default async function EditEventPage({
             <div className="mt-6 space-y-4">
               {sortedMatches.map((match: any, index: number) => {
                 const options = optionValues(match);
+                const removeFormId = `remove-match-${match.id}`;
 
                 return (
                   <details
@@ -376,11 +377,9 @@ export default async function EditEventPage({
                         </p>
 
                         <button
-                          formAction={removeMatchFromEvent}
+                          form={removeFormId}
                           className="mt-3 rounded-2xl border border-red-700 bg-red-950/60 px-5 py-3 text-sm font-black uppercase text-red-100 hover:bg-red-900"
                           type="submit"
-                          name="match_id"
-                          value={match.id}
                         >
                           Remove Match
                         </button>
@@ -397,6 +396,18 @@ export default async function EditEventPage({
           Save Event Changes
         </button>
       </form>
+
+      {sortedMatches.map((match: any) => (
+        <form
+          key={`remove-form-${match.id}`}
+          id={`remove-match-${match.id}`}
+          action={removeMatchFromEvent}
+          className="hidden"
+        >
+          <input type="hidden" name="event_id" value={event.id} />
+          <input type="hidden" name="match_id" value={match.id} />
+        </form>
+      ))}
 
       <section id="add-match" className="scroll-mt-28">
         {event.status === "open" ? (
