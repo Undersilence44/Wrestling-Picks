@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { savePicks } from "../actions";
 import EventPickCard from "@/components/EventPickCard";
+import LeaguePicks from "@/components/LeaguePicks";
 
 function statusClass(status: string) {
   if (status === "open") return "border-blue-700 bg-blue-950 text-blue-200";
@@ -25,6 +26,17 @@ function optionList(match: any) {
     match.option_5,
     match.option_6,
   ].filter(Boolean);
+}
+
+function memberDisplayName(member: any, profileMap: Map<string, any>) {
+  const profile = profileMap.get(member.user_id);
+
+  return (
+    profile?.display_name ||
+    profile?.full_name ||
+    profile?.email ||
+    member.user_id
+  );
 }
 
 export default async function EventPicksPage({
@@ -61,7 +73,7 @@ export default async function EventPicksPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, event_date, status, perfect_bonus, league_id, leagues(id, name, scoring_type, fixed_points, perfect_bonus), matches(id, match_order, match_title, description, competitor_a, competitor_b, competitor_c, competitor_d, competitor_e, competitor_f, option_1, option_2, option_3, option_4, option_5, option_6, winner, points_override)"
+      "id, name, event_date, status, perfect_bonus, league_id, leagues(id, name, scoring_type, fixed_points, perfect_bonus), matches(id, match_order, match_title, description, competitor_a, competitor_b, competitor_c, competitor_d, competitor_e, competitor_f, option_1, option_2, option_3, option_4, option_5, option_6, winner, points_override)",
     )
     .eq("id", eventId)
     .single();
@@ -85,7 +97,7 @@ export default async function EventPicksPage({
   }
 
   const matches = [...((event as any).matches || [])].sort(
-    (a: any, b: any) => a.match_order - b.match_order
+    (a: any, b: any) => a.match_order - b.match_order,
   );
 
   const { data: existingPicks } = await supabase
@@ -102,7 +114,7 @@ export default async function EventPicksPage({
     .maybeSingle();
 
   const pickByMatch = new Map(
-    (existingPicks || []).map((pick: any) => [pick.match_id, pick])
+    (existingPicks || []).map((pick: any) => [pick.match_id, pick]),
   );
 
   const league = (event as any).leagues;
@@ -112,6 +124,94 @@ export default async function EventPicksPage({
 
   const isFinal = event.status === "final";
   const isFixed = league?.scoring_type === "fixed";
+
+  const { data: leagueMembers } = await supabase
+    .from("league_members")
+    .select("user_id, role, status")
+    .eq("league_id", event.league_id)
+    .eq("status", "active");
+
+  const memberUserIds = Array.from(
+    new Set(
+      (leagueMembers || [])
+        .map((member: any) => member.user_id)
+        .filter(Boolean),
+    ),
+  );
+
+  const { data: memberProfiles } = memberUserIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, display_name, full_name, email, avatar_url")
+        .in("id", memberUserIds)
+    : { data: [] as any[] };
+
+  const memberProfileMap = new Map<string, any>();
+  for (const profile of memberProfiles || []) {
+    memberProfileMap.set(profile.id, profile);
+  }
+
+  const { data: leagueMemberPicks } = locked
+    ? await supabase
+        .from("picks")
+        .select(
+          "user_id, match_id, predicted_winner, confidence_rank, points_awarded",
+        )
+        .eq("event_id", event.id)
+    : { data: [] as any[] };
+
+  const picksByUser = new Map<string, Map<string, any>>();
+  for (const pick of leagueMemberPicks || []) {
+    if (!picksByUser.has(pick.user_id)) {
+      picksByUser.set(pick.user_id, new Map<string, any>());
+    }
+
+    picksByUser.get(pick.user_id)?.set(pick.match_id, pick);
+  }
+
+  const leaguePickMembers = (leagueMembers || []).map((member: any) => {
+    const memberPicks = picksByUser.get(member.user_id);
+    const profile = memberProfileMap.get(member.user_id);
+    const displayName = memberDisplayName(member, memberProfileMap);
+
+    const submittedCount = matches.filter((match: any) =>
+      Boolean(memberPicks?.get(match.id)?.predicted_winner),
+    ).length;
+
+    const totalAwarded = matches.reduce(
+      (total: number, match: any) =>
+        total + Number(memberPicks?.get(match.id)?.points_awarded || 0),
+      0,
+    );
+
+    return {
+      userId: member.user_id,
+      displayName,
+      avatarUrl: profile?.avatar_url || null,
+      role: member.role,
+      submittedCount,
+      totalAwarded,
+      isCurrentUser: member.user_id === user.id,
+      picks: matches.map((match: any) => {
+        const pick = memberPicks?.get(match.id);
+        const predictedWinner =
+          pick?.predicted_winner || "No pick submitted";
+
+        return {
+          matchId: match.id,
+          matchOrder: match.match_order,
+          matchTitle: match.match_title,
+          predictedWinner,
+          confidenceRank: pick?.confidence_rank || null,
+          hasPick: Boolean(pick?.predicted_winner),
+          isCorrect:
+            isFinal &&
+            Boolean(match.winner) &&
+            predictedWinner === match.winner,
+        };
+      }),
+    };
+  });
 
   const completedPicks = matches.filter((match: any) => {
     const pick = pickByMatch.get(match.id) as any;
@@ -155,7 +255,7 @@ export default async function EventPicksPage({
             <div className="mt-5 flex flex-wrap gap-3">
               <span
                 className={`rounded-full border px-4 py-2 text-xs font-black uppercase ${statusClass(
-                  locked && event.status === "open" ? "locked" : event.status
+                  locked && event.status === "open" ? "locked" : event.status,
                 )}`}
               >
                 {locked && event.status === "open" ? "locked" : event.status}
@@ -331,7 +431,6 @@ export default async function EventPicksPage({
                 defaultValue={existingBet?.wager || 0}
                 disabled={locked}
               />
-
               <span className="mt-2 block text-xs text-slate-400">
                 Wagers can be reviewed and scored by league admins.
               </span>
@@ -349,6 +448,15 @@ export default async function EventPicksPage({
           </button>
         )}
       </form>
+
+      <LeaguePicks
+        locked={locked}
+        isFinal={isFinal}
+        isFixed={isFixed}
+        matchCount={matches.length}
+        members={leaguePickMembers}
+      />
     </main>
   );
 }
+
